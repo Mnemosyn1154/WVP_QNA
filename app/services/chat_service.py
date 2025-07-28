@@ -6,10 +6,13 @@ from typing import Dict, Any, Optional, List
 import time
 import json
 import hashlib
+import os
 from loguru import logger
 from sqlalchemy.orm import Session
 
 from app.services.claude_service import ClaudeService
+from app.services.interactive_claude_service import InteractiveClaudeService
+from app.services.gemini_service import GeminiService
 from app.services.document_service import DocumentService
 from app.services.pdf_processor import PDFProcessor
 from app.schemas.chat_schemas import ChatResponse
@@ -22,10 +25,25 @@ class ChatService:
     def __init__(self, db: Session):
         self.db = db
         self.claude_service = ClaudeService()
+        self.interactive_claude_service = InteractiveClaudeService()
+        
+        # Initialize Gemini service if API key is available
+        gemini_api_key = os.getenv("GEMINI_API_KEY", "AIzaSyCEPAGmLnxEpJwGMrsJ6qQq__0Nwt0LDOw")
+        try:
+            self.gemini_service = GeminiService(api_key=gemini_api_key)
+            self.use_gemini = True
+            logger.info("Gemini service initialized successfully")
+        except Exception as e:
+            logger.warning(f"Failed to initialize Gemini service: {e}")
+            self.gemini_service = None
+            self.use_gemini = False
+        
         self.document_service = DocumentService(db)
         self.pdf_processor = PDFProcessor()
         # Redis will be added later
         self.cache = {}
+        # Feature flag for interactive mode (disabled when using Gemini)
+        self.use_interactive_mode = False  # Disabled since we're using Gemini as default
     
     async def process_query(
         self,
@@ -57,7 +75,131 @@ class ChatService:
                 cached_response["processing_time"] = processing_time
                 return ChatResponse(**cached_response)
             
-            # Find relevant document for the question
+            # Use Gemini as default if available
+            if self.use_gemini and self.gemini_service:
+                logger.info("Using Gemini Pro for processing")
+                
+                # Find relevant documents
+                document, pdf_content = self.document_service.get_document_for_question(question)
+                
+                # Prepare text context for Gemini
+                context_text = ""
+                sources = []
+                
+                if document and pdf_content:
+                    # Extract text from PDF for Gemini (limitation: can't process PDF directly)
+                    try:
+                        from app.services.pdf_processor import PDFProcessor
+                        processor = PDFProcessor()
+                        text_content = processor.extract_text_from_pdf(pdf_content)
+                        
+                        if text_content:
+                            context_text = f"[{document.company_name} - {document.year}년 {document.doc_type}]\n{text_content[:5000]}"  # Limit text length
+                            sources.append(f"{document.company_name} {document.year}년 {document.doc_type}")
+                    except Exception as e:
+                        logger.warning(f"Failed to extract text from PDF: {e}")
+                
+                # Call Gemini API
+                result = await self.gemini_service.ask_simple_question(
+                    question=question,
+                    context=context_text if context_text else None
+                )
+                
+                processing_time = result.get("processing_time", time.time() - start_time)
+                
+                response = ChatResponse(
+                    answer=result["answer"],
+                    sources=sources,
+                    processing_time=processing_time,
+                    metadata={
+                        "model_used": result["model"],
+                        "token_usage": result.get("usage", {}),
+                        "complexity": result.get("complexity", "simple"),
+                        "llm_provider": "gemini"
+                    }
+                )
+                
+                # Cache and save to history
+                self._cache_response(cache_key, response.model_dump())
+                self._save_to_history(
+                    user_id=user_id,
+                    question=question,
+                    answer=result["answer"],
+                    sources=sources,
+                    context=context,
+                    metadata=result
+                )
+                
+                return response
+            
+            # Check if this is a comparison question
+            if "비교" in question:
+                # Extract multiple companies from question
+                companies = []
+                for company in ["마인이스", "설로인", "우나스텔라"]:
+                    if company in question:
+                        companies.append(company)
+                
+                if len(companies) >= 2:
+                    # Handle multiple company comparison
+                    year = self.document_service.extract_year_from_question(question)
+                    if not year:
+                        year = 2024
+                    
+                    # Collect documents for all companies
+                    documents_info = []
+                    for company in companies:
+                        documents = self.document_service.find_relevant_documents(company, year)
+                        if documents:
+                            doc = documents[0]
+                            try:
+                                pdf_content = self.document_service.read_pdf_content(doc.file_path)
+                                documents_info.append({
+                                    "company": company,
+                                    "year": doc.year,
+                                    "doc_type": doc.doc_type,
+                                    "content": pdf_content
+                                })
+                            except Exception as e:
+                                logger.error(f"Error reading PDF for {company}: {e}")
+                    
+                    if len(documents_info) >= 2:
+                        # Call Claude with multiple PDFs
+                        result = await self.claude_service.analyze_multiple_pdfs_with_question(
+                            documents_info=documents_info,
+                            question=question
+                        )
+                        
+                        processing_time = time.time() - start_time
+                        sources = [f"{company} {year}년 재무제표" for company in companies]
+                        
+                        response = ChatResponse(
+                            answer=result["answer"],
+                            sources=sources,
+                            processing_time=processing_time,
+                            metadata={
+                                "model_used": result["model_used"],
+                                "token_usage": result["usage"],
+                                "estimated_cost": self.claude_service.estimate_cost(result["usage"], result["model_used"]),
+                                "comparison": True,
+                                "companies": companies
+                            }
+                        )
+                        
+                        # Cache and save to history
+                        self._cache_response(cache_key, response.model_dump())
+                        self._save_to_history(
+                            user_id=user_id,
+                            question=question,
+                            answer=result["answer"],
+                            sources=sources,
+                            context=context,
+                            metadata=result
+                        )
+                        
+                        return response
+            
+            # Find relevant document for the question (single company)
             document, pdf_content = self.document_service.get_document_for_question(question)
             
             if not document or not pdf_content:

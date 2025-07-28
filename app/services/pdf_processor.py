@@ -245,3 +245,52 @@ class PDFProcessor:
         except Exception as e:
             logger.error(f"Error extracting tables: {e}")
             return {}
+    
+    def extract_text_from_pdf(self, pdf_content: bytes) -> str:
+        """
+        Extract all text from PDF for text-based LLMs like Gemini
+        
+        Args:
+            pdf_content: PDF file content
+            
+        Returns:
+            Extracted text as string
+        """
+        try:
+            pdf_document = fitz.open(stream=pdf_content, filetype="pdf")
+            all_text = []
+            
+            for page_num in range(len(pdf_document)):
+                page = pdf_document[page_num]
+                
+                # Extract text
+                text = page.get_text()
+                if text.strip():
+                    all_text.append(f"\n--- 페이지 {page_num + 1} ---\n")
+                    all_text.append(text)
+                
+                # Extract tables
+                tables = page.find_tables()
+                if tables:
+                    all_text.append("\n[표 데이터]\n")
+                    for table in tables:
+                        data = table.extract()
+                        for row in data:
+                            all_text.append(" | ".join(str(cell) if cell else "" for cell in row))
+                        all_text.append("")  # Empty line after table
+            
+            pdf_document.close()
+            
+            # Join all text
+            full_text = "\n".join(all_text)
+            
+            # If no text found, might be scanned PDF
+            if len(full_text.strip()) < 100:
+                logger.warning("PDF appears to be image-based, OCR might be needed")
+                return "이 PDF는 스캔된 이미지 문서로 보입니다. 텍스트 추출이 제한적입니다."
+            
+            return full_text
+            
+        except Exception as e:
+            logger.error(f"Error extracting text from PDF: {e}")
+            return f"PDF 텍스트 추출 오류: {str(e)}"

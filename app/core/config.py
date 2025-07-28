@@ -28,6 +28,9 @@ class Settings(BaseSettings):
     CLAUDE_TEST_MODE: Optional[str] = None
     CLAUDE_API_MAX_FILE_SIZE_MB: float = 10.0  # Maximum file size for Claude API in MB
     
+    # Gemini API
+    GEMINI_API_KEY: Optional[str] = None
+    
     # Security
     SECRET_KEY: str
     ALGORITHM: str = "HS256"
