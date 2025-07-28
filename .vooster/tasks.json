@@ -1,0 +1,86 @@
+{
+  "totalCount": 8,
+  "downloadedAt": "2025-07-25T06:24:41.608Z",
+  "tasks": [
+    {
+      "taskId": "T-001",
+      "summary": "로컬 개발 환경 세팅",
+      "status": "BACKLOG",
+      "importance": "MUST",
+      "complexity": 4,
+      "urgency": 10,
+      "createdAt": "2025-07-25T05:56:30.691Z",
+      "updatedAt": "2025-07-25T05:56:30.691Z"
+    },
+    {
+      "taskId": "T-002",
+      "summary": "백엔드 기본 프로젝트 구조 생성(FastAPI)",
+      "status": "BACKLOG",
+      "importance": "MUST",
+      "complexity": 3,
+      "urgency": 9,
+      "createdAt": "2025-07-25T05:56:30.691Z",
+      "updatedAt": "2025-07-25T05:56:30.691Z"
+    },
+    {
+      "taskId": "T-003",
+      "summary": "프론트엔드 기본 프로젝트 구조 생성(React)",
+      "status": "BACKLOG",
+      "importance": "MUST",
+      "complexity": 3,
+      "urgency": 9,
+      "createdAt": "2025-07-25T05:56:30.691Z",
+      "updatedAt": "2025-07-25T05:56:30.691Z"
+    },
+    {
+      "taskId": "T-004",
+      "summary": "공통 테스트 페이지/데모 UI 구축",
+      "status": "BACKLOG",
+      "importance": "MUST",
+      "complexity": 4,
+      "urgency": 8,
+      "createdAt": "2025-07-25T05:56:30.691Z",
+      "updatedAt": "2025-07-25T05:56:30.691Z"
+    },
+    {
+      "taskId": "T-005",
+      "summary": "데이터베이스 스키마/초기화 자동화",
+      "status": "BACKLOG",
+      "importance": "MUST",
+      "complexity": 4,
+      "urgency": 8,
+      "createdAt": "2025-07-25T05:56:30.691Z",
+      "updatedAt": "2025-07-25T05:56:30.691Z"
+    },
+    {
+      "taskId": "T-006",
+      "summary": "간단한 샘플 데이터/더미 PDF 연동",
+      "status": "BACKLOG",
+      "importance": "SHOULD",
+      "complexity": 2,
+      "urgency": 7,
+      "createdAt": "2025-07-25T05:56:30.691Z",
+      "updatedAt": "2025-07-25T05:56:30.691Z"
+    },
+    {
+      "taskId": "T-007",
+      "summary": "API 샘플 구현 및 프론트-백 연결 테스트",
+      "status": "BACKLOG",
+      "importance": "MUST",
+      "complexity": 4,
+      "urgency": 7,
+      "createdAt": "2025-07-25T05:56:30.691Z",
+      "updatedAt": "2025-07-25T05:56:30.691Z"
+    },
+    {
+      "taskId": "T-008",
+      "summary": "간단한 자동화 테스트(기본 E2E 또는 API 테스트)",
+      "status": "BACKLOG",
+      "importance": "SHOULD",
+      "complexity": 3,
+      "urgency": 6,
+      "createdAt": "2025-07-25T05:56:30.691Z",
+      "updatedAt": "2025-07-25T05:56:30.691Z"
+    }
+  ]
+}

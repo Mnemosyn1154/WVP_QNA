@@ -1,0 +1,92 @@
+version: '3.8'
+
+services:
+  postgres:
+    image: postgres:15-alpine
+    container_name: portfolio_qa_postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: portfolio_user
+      POSTGRES_PASSWORD: portfolio_pass
+      POSTGRES_DB: portfolio_qa_db
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./init-db:/docker-entrypoint-initdb.d
+    ports:
+      - "5432:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U portfolio_user -d portfolio_qa_db"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  redis:
+    image: redis:7-alpine
+    container_name: portfolio_qa_redis
+    restart: unless-stopped
+    command: redis-server --appendonly yes
+    volumes:
+      - redis_data:/data
+    ports:
+      - "6379:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  chromadb:
+    image: ghcr.io/chroma-core/chroma:latest
+    container_name: portfolio_qa_chromadb
+    restart: unless-stopped
+    volumes:
+      - chromadb_data:/chroma/chroma
+    ports:
+      - "8000:8000"
+    environment:
+      - IS_PERSISTENT=TRUE
+      - PERSIST_DIRECTORY=/chroma/chroma
+      - ANONYMIZED_TELEMETRY=FALSE
+
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: portfolio_qa_app
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      chromadb:
+        condition: service_started
+    environment:
+      - DATABASE_URL=postgresql+asyncpg://portfolio_user:portfolio_pass@postgres:5432/portfolio_qa_db
+      - REDIS_URL=redis://redis:6379
+      - CHROMADB_URL=http://chromadb:8000
+      - CLAUDE_API_KEY=${CLAUDE_API_KEY}
+    volumes:
+      - ./app:/app
+      - ./data:/data
+    ports:
+      - "8080:8080"
+    command: uvicorn app.main:app --host 0.0.0.0 --port 8080 --reload
+
+  nginx:
+    image: nginx:alpine
+    container_name: portfolio_qa_nginx
+    restart: unless-stopped
+    depends_on:
+      - app
+    volumes:
+      - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
+      - ./nginx/conf.d:/etc/nginx/conf.d:ro
+    ports:
+      - "80:80"
+      - "443:443"
+
+volumes:
+  postgres_data:
+  redis_data:
+  chromadb_data:

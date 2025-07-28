@@ -1,0 +1,19 @@
+# 데이터베이스 스키마/초기화 자동화
+
+**Task ID:** T-005
+**Status:** BACKLOG
+**Importance:** MUST
+**Complexity:** 4/10
+**Urgency:** 8/10
+**Dependencies:** T-004
+
+## Description
+
+**설명**: TRD 기반 PostgreSQL 테이블 생성 및 초기화를 자동화하는 마이그레이션 도구를 구성해 환경 재현성을 보장합니다.
+**구현 세부 사항**: 1. Alembic 초기화(`alembic init alembic`) 2. `alembic/env.py`, `alembic/versions` 설정 3. 뉴스(news), 재무문서(financial_docs), 사용자(users), 채팅이력(chat_history) 스키마 마이그레이션 파일 생성 4. `alembic upgrade head` 실행 스크립트 작성 5. Docker Compose 환경에 마이그레이션 단계 추가
+**테스트 전략**: `alembic upgrade head` 후 Postgres에 접속해 테이블 존재 여부 및 컬럼 정의 확인, 재실행 시 오류 없이 스키마 동기화 검증
+
+---
+
+**Created:** 2025-07-25T05:56:30.691Z
+**Updated:** 2025-07-25T05:56:30.691Z

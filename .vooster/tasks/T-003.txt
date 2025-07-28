@@ -1,0 +1,19 @@
+# 프론트엔드 기본 프로젝트 구조 생성(React)
+
+**Task ID:** T-003
+**Status:** BACKLOG
+**Importance:** MUST
+**Complexity:** 3/10
+**Urgency:** 9/10
+**Dependencies:** T-002
+
+## Description
+
+**설명**: Vite 기반 React 프로젝트를 세팅하고 Tailwind CSS 및 Chart.js를 설치해 기본 라우팅을 구성합니다.
+**구현 세부 사항**: 1. `npm create vite@latest`로 React 템플릿 생성 2. Tailwind CSS 초기설정(`tailwind.config.js`, `postcss.config.js`) 3. `npm install chart.js react-chartjs-2` 설치 4. React Router로 `Home`, `Test` 페이지 컴포넌트 생성 5. `App.tsx`에서 라우팅 연결
+**테스트 전략**: `npm run dev` 실행 후 Home 및 Test 페이지 정상 렌더링, Tailwind 스타일 및 차트 컴포넌트 로드 확인
+
+---
+
+**Created:** 2025-07-25T05:56:30.691Z
+**Updated:** 2025-07-25T05:56:30.691Z

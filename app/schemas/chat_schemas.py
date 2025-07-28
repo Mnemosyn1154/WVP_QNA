@@ -1,0 +1,50 @@
+"""
+Chat-related Pydantic schemas
+"""
+
+from typing import Optional, List, Dict, Any
+from datetime import datetime
+from pydantic import BaseModel, Field
+
+
+class ChatRequest(BaseModel):
+    """Request model for chat endpoint"""
+    question: str = Field(..., min_length=1, max_length=1000, description="User's question")
+    context: Optional[Dict[str, Any]] = Field(None, description="Additional context for the query")
+
+
+class ChatResponse(BaseModel):
+    """Response model for chat endpoint"""
+    answer: str = Field(..., description="AI-generated answer")
+    sources: List[str] = Field(default_factory=list, description="Source documents used")
+    charts: Optional[List[Dict[str, Any]]] = Field(None, description="Chart data if applicable")
+    processing_time: Optional[float] = Field(None, description="Time taken to process (seconds)")
+    metadata: Optional[Dict[str, Any]] = Field(None, description="Additional metadata (model, usage, cost)")
+    
+    class Config:
+        json_schema_extra = {
+            "example": {
+                "answer": "A기업의 2024년 매출은 1,234억원입니다.",
+                "sources": ["A기업_2024_사업보고서.pdf (p.23)"],
+                "charts": None,
+                "processing_time": 2.5,
+                "metadata": {
+                    "model_used": "claude-3-sonnet",
+                    "token_usage": {"input_tokens": 1000, "output_tokens": 500},
+                    "estimated_cost": 0.025
+                }
+            }
+        }
+
+
+class ChatHistoryItem(BaseModel):
+    """Chat history item model"""
+    id: int
+    user_id: Optional[int]
+    question: str
+    answer: Optional[str]
+    context: Optional[Dict[str, Any]]
+    created_at: datetime
+    
+    class Config:
+        from_attributes = True

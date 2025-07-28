@@ -1,0 +1,82 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+venv/
+env/
+ENV/
+.venv
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# Database
+*.db
+*.sqlite
+*.sqlite3
+
+# Environment variables
+.env
+.env.local
+.env.*.local
+
+# Logs
+*.log
+logs/
+
+# Test coverage
+htmlcov/
+.coverage
+.coverage.*
+coverage.xml
+*.cover
+.pytest_cache/
+
+# Distribution / packaging
+dist/
+build/
+*.egg-info/
+.eggs/
+
+# Node
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# macOS
+.DS_Store
+
+# Project specific
+data/cache/
+data/financial_docs/*.pdf
+data/news_attachments/
+test_output_*.pdf
+pdf_optimization_results.json
+pdf_splitter_test_results.json
+pdf_e2e_test_report_*.json
+
+# Alembic
+alembic/versions/*.pyc
+
+# Frontend build
+frontend/dist/
+frontend/build/
+
+# Temporary files
+*.tmp
+*.temp
+*.bak
+temp/
+tmp/
+
+# Secret files
+secrets/
+*.key
+*.pem

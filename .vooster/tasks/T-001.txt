@@ -1,0 +1,19 @@
+# 로컬 개발 환경 세팅
+
+**Task ID:** T-001
+**Status:** BACKLOG
+**Importance:** MUST
+**Complexity:** 4/10
+**Urgency:** 10/10
+**Dependencies:** None
+
+## Description
+
+**설명**: Docker Compose를 사용해 FastAPI, PostgreSQL, Redis, ChromaDB, React 개발환경을 로컬에서 한 번에 실행할 수 있도록 구성합니다.
+**구현 세부 사항**: 1. 프로젝트 루트에 `docker-compose.yml` 생성 2. services에 backend(FastAPI+Gunicorn), db(PostgreSQL), redis(Redis), chromadb(ChromaDB), frontend(Vite+React) 설정 3. `.env.sample` 파일 작성 및 환경 변수 정의 4. 볼륨(volume)과 네트워크(network) 설정 5. `docker-compose up -d`로 전체 환경 실행
+**테스트 전략**: `docker ps`로 컨테이너 상태 확인, http://localhost:8000/api/health 호출 정상 응답 확인, http://localhost:3000 React 앱 접속 확인
+
+---
+
+**Created:** 2025-07-25T05:56:30.691Z
+**Updated:** 2025-07-25T05:56:30.691Z

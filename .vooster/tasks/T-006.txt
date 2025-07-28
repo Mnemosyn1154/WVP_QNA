@@ -1,0 +1,19 @@
+# 간단한 샘플 데이터/더미 PDF 연동
+
+**Task ID:** T-006
+**Status:** BACKLOG
+**Importance:** SHOULD
+**Complexity:** 2/10
+**Urgency:** 7/10
+**Dependencies:** T-005
+
+## Description
+
+**설명**: 민감 정보 없이 테스트용 샘플 PDF와 뉴스 데이터를 로컬에 저장하고 DB에 입력해 개발 및 데모 시 활용합니다.
+**구현 세부 사항**: 1. `data/financial_docs/sample/`에 샘플 PDF 파일 배치 2. 뉴스 샘플 CSV 혹은 JSON 파일 생성 3. FastAPI seed 스크립트(`scripts/seed.py`) 작성: SQLAlchemy로 샘플 데이터 삽입 4. ChromaDB 임베딩 파이프라인에 샘플 PDF 연동 로직 추가 5. Docker Compose 서비스에 seed 단계 추가
+**테스트 전략**: seed 스크립트 실행 후 Postgres에 샘플 레코드 존재 확인, ChromaDB에 임베딩 벡터가 정상적으로 적재되었는지 검증
+
+---
+
+**Created:** 2025-07-25T05:56:30.691Z
+**Updated:** 2025-07-25T05:56:30.691Z

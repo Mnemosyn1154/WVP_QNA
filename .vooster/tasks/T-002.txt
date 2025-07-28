@@ -1,0 +1,19 @@
+# 백엔드 기본 프로젝트 구조 생성(FastAPI)
+
+**Task ID:** T-002
+**Status:** BACKLOG
+**Importance:** MUST
+**Complexity:** 3/10
+**Urgency:** 9/10
+**Dependencies:** T-001
+
+## Description
+
+**설명**: FastAPI 도메인 기반 폴더 구조 및 최소 API 라우터를 생성해 향후 기능 확장에 유리한 백엔드 구조를 만듭니다.
+**구현 세부 사항**: 1. `app/` 디렉토리 생성 2. `main.py`에서 FastAPI 앱 초기화 및 미들웨어 등록 3. `app/api/endpoints/health.py`, `hello.py` 라우터 작성 4. `app/core/config.py`에서 환경변수 로드 설정 5. 서비스(service) 및 모듈(module) 샘플 파일 생성 6. Uvicorn 실행 스크립트 작성
+**테스트 전략**: 서버 실행 후 `/api/health`, `/api/hello` 엔드포인트 호출해 200 OK 응답 및 예상 메시지 확인
+
+---
+
+**Created:** 2025-07-25T05:56:30.691Z
+**Updated:** 2025-07-25T05:56:30.691Z

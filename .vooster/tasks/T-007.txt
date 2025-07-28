@@ -1,0 +1,19 @@
+# API 샘플 구현 및 프론트-백 연결 테스트
+
+**Task ID:** T-007
+**Status:** BACKLOG
+**Importance:** MUST
+**Complexity:** 4/10
+**Urgency:** 7/10
+**Dependencies:** T-006
+
+## Description
+
+**설명**: 기본 샘플 API(`/api/chat`, `/api/documents/search`, `/api/news/search`)를 구현하고 프론트엔드 테스트 페이지에서 호출/응답을 확인합니다.
+**구현 세부 사항**: 1. FastAPI에서 샘플 응답 반환 엔드포인트 구현 2. React 테스트 페이지에 fetch/axios 호출 로직 추가 3. 요청 바디 및 쿼리 파라미터 매핑 4. 응답 JSON을 UI에 렌더링 5. 에러 및 로딩 상태 처리
+**테스트 전략**: 테스트 페이지에서 각 샘플 API 버튼 클릭 시 예상 구조의 JSON 응답 출력 확인, 네트워크 탭에서 요청·응답 데이터 검증
+
+---
+
+**Created:** 2025-07-25T05:56:30.691Z
+**Updated:** 2025-07-25T05:56:30.691Z
