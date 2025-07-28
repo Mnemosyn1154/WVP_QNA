@@ -14,6 +14,14 @@ from app.api.deps import get_chat_service
 router = APIRouter()
 
 
+@router.delete("/cache")
+async def clear_cache(db: Session = Depends(get_db)):
+    """Clear the chat cache"""
+    chat_service = ChatService(db)
+    chat_service.cache.clear()
+    return {"message": "Cache cleared successfully", "status": "success"}
+
+
 @router.post("/", response_model=ChatResponse)
 async def create_chat_completion(
     request: ChatRequest,

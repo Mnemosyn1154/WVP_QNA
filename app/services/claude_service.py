@@ -51,15 +51,24 @@ class ClaudeService:
         self.pdf_optimizer = PDFOptimizer()
         self.pdf_splitter = PDFSplitter()
     
-    def select_model(self, question: str, complexity: str = "medium") -> str:
-        """Select appropriate Claude model based on question complexity"""
-        # Simple heuristic for model selection
+    def select_model(self, question: str, complexity: str = "medium", for_pdf: bool = False) -> str:
+        """Select appropriate Claude model based on question complexity
+        
+        Args:
+            question: The question to analyze
+            complexity: Complexity level (simple/medium/complex)
+            for_pdf: Whether this is for PDF analysis (requires Sonnet or Opus)
+        """
+        # PDF analysis requires Sonnet or Opus (Haiku doesn't support PDF input)
+        if for_pdf:
+            return self.models["sonnet"]
+        
+        # For non-PDF queries, use complexity-based selection
         if complexity == "simple" or len(question) < 20:
             return self.models["haiku"]
         elif complexity == "complex" or "분석" in question or "비교" in question:
-            return self.models["sonnet"]  # Use Sonnet for PDF analysis
+            return self.models["sonnet"]
         else:
-            # Default to Sonnet for PDF processing capability
             return self.models["sonnet"]
     
     async def analyze_pdf_with_question(
@@ -141,8 +150,8 @@ class ClaudeService:
             # Convert PDF to base64
             pdf_base64 = base64.b64encode(processed_pdf_content).decode('utf-8')
             
-            # Select model
-            model = model_override or self.select_model(question)
+            # Select model - always use PDF-capable model for PDF analysis
+            model = model_override or self.select_model(question, for_pdf=True)
             
             # Construct prompt
             system_prompt = f"""당신은 한국 투자 포트폴리오 기업의 재무 문서를 분석하는 전문가입니다.
@@ -217,6 +226,10 @@ class ClaudeService:
             # Extract response
             answer = message.content[0].text if message.content else "응답을 생성할 수 없습니다."
             
+            # Log the actual response for debugging
+            logger.info(f"Claude API Response: {answer[:200]}...")
+            logger.debug(f"Full Claude response: {message}")
+            
             response = {
                 "answer": answer,
                 "model_used": model,
@@ -245,6 +258,111 @@ class ClaudeService:
         except Exception as e:
             logger.error(f"Unexpected error in Claude service: {e}")
             raise Exception(f"예상치 못한 오류가 발생했습니다: {str(e)}")
+    
+    async def analyze_multiple_pdfs_with_question(
+        self,
+        documents_info: List[Dict[str, Any]],
+        question: str,
+        model_override: Optional[str] = None
+    ) -> Dict[str, Any]:
+        """
+        Analyze multiple PDFs together for comparison
+        
+        Args:
+            documents_info: List of dicts with company, content, year, doc_type
+            question: User's comparison question
+            model_override: Override model selection
+            
+        Returns:
+            Dict containing comparative analysis
+        """
+        if self.test_mode:
+            return {
+                "answer": "[테스트 모드] 여러 회사 비교 분석 결과입니다.",
+                "model_used": "test-mode",
+                "usage": {"input_tokens": 100, "output_tokens": 50, "total_tokens": 150}
+            }
+        
+        try:
+            # Always use Sonnet for PDF analysis
+            model = model_override or self.models["sonnet"]
+            
+            # Prepare system prompt
+            companies = [doc["company"] for doc in documents_info]
+            year = documents_info[0]["year"] if documents_info else 2024
+            
+            system_prompt = f"""당신은 한국 투자 포트폴리오 기업의 재무 문서를 비교 분석하는 전문가입니다.
+
+{len(companies)}개 회사({', '.join(companies)})의 {year}년 재무제표를 비교 분석하여 사용자의 질문에 답변해주세요.
+
+답변 시 주의사항:
+1. 각 회사의 구체적인 수치를 명시하여 비교하세요
+2. 성장률, 비율 등을 계산하여 제시하세요
+3. 표 형식으로 정리하면 더 좋습니다
+4. 모든 금액은 원화 단위로 천 단위 구분자를 사용하세요
+5. 각 회사의 특징과 차이점을 명확히 설명하세요"""
+
+            # Prepare content list
+            content_list = []
+            
+            for i, doc_info in enumerate(documents_info):
+                company = doc_info["company"]
+                pdf_base64 = base64.b64encode(doc_info["content"]).decode('utf-8')
+                
+                # Add document
+                content_list.append({
+                    "type": "text",
+                    "text": f"=== {company} {doc_info['year']}년 {doc_info['doc_type']} ==="
+                })
+                
+                content_list.append({
+                    "type": "document",
+                    "source": {
+                        "type": "base64",
+                        "media_type": "application/pdf",
+                        "data": pdf_base64
+                    }
+                })
+            
+            # Add the comparison question
+            content_list.append({
+                "type": "text",
+                "text": f"\n위 {len(companies)}개 회사의 재무제표를 비교하여 다음 질문에 답변해주세요:\n\n{question}"
+            })
+            
+            # Call Claude API
+            logger.info(f"Comparing {len(companies)} companies with Claude")
+            
+            message = self.client.beta.messages.create(
+                model=model,
+                max_tokens=4000,
+                temperature=0.1,
+                system=system_prompt,
+                messages=[
+                    {
+                        "role": "user",
+                        "content": content_list
+                    }
+                ]
+            )
+            
+            answer = message.content[0].text if message.content else "응답을 생성할 수 없습니다."
+            
+            return {
+                "answer": answer,
+                "model_used": model,
+                "usage": {
+                    "input_tokens": message.usage.input_tokens,
+                    "output_tokens": message.usage.output_tokens,
+                    "total_tokens": message.usage.input_tokens + message.usage.output_tokens
+                },
+                "companies": companies,
+                "year": year
+            }
+            
+        except Exception as e:
+            logger.error(f"Error in analyze_multiple_pdfs: {e}")
+            raise
     
     def estimate_cost(self, usage: Dict[str, int], model: str) -> float:
         """Estimate API cost based on token usage"""

@@ -75,8 +75,16 @@ class ChatService:
                 cached_response["processing_time"] = processing_time
                 return ChatResponse(**cached_response)
             
-            # Use Gemini as default if available
-            if self.use_gemini and self.gemini_service:
+            # Determine if we should use Claude (for comparisons or complex queries)
+            use_claude = False
+            
+            # Check if this is a comparison question
+            if "비교" in question or any(keyword in question for keyword in ["설로인", "우나스텔라"]):
+                use_claude = True
+                logger.info("Detected comparison or complex query, will use Claude")
+            
+            # Use Gemini as default if available and not complex query
+            if self.use_gemini and self.gemini_service and not use_claude:
                 logger.info("Using Gemini Pro for processing")
                 
                 # Find relevant documents
@@ -93,44 +101,54 @@ class ChatService:
                         processor = PDFProcessor()
                         text_content = processor.extract_text_from_pdf(pdf_content)
                         
-                        if text_content:
+                        # Check if PDF is image-based (scanned)
+                        if text_content and "스캔된 이미지 문서" in text_content:
+                            logger.warning(f"PDF is image-based, falling back to Claude for {document.company_name}")
+                            use_claude = True
+                        elif text_content and len(text_content.strip()) > 100:
                             context_text = f"[{document.company_name} - {document.year}년 {document.doc_type}]\n{text_content[:5000]}"  # Limit text length
                             sources.append(f"{document.company_name} {document.year}년 {document.doc_type}")
+                        else:
+                            logger.warning(f"Insufficient text extracted from PDF, falling back to Claude")
+                            use_claude = True
                     except Exception as e:
                         logger.warning(f"Failed to extract text from PDF: {e}")
+                        use_claude = True
                 
-                # Call Gemini API
-                result = await self.gemini_service.ask_simple_question(
-                    question=question,
-                    context=context_text if context_text else None
-                )
-                
-                processing_time = result.get("processing_time", time.time() - start_time)
-                
-                response = ChatResponse(
-                    answer=result["answer"],
-                    sources=sources,
-                    processing_time=processing_time,
-                    metadata={
-                        "model_used": result["model"],
-                        "token_usage": result.get("usage", {}),
-                        "complexity": result.get("complexity", "simple"),
-                        "llm_provider": "gemini"
-                    }
-                )
-                
-                # Cache and save to history
-                self._cache_response(cache_key, response.model_dump())
-                self._save_to_history(
-                    user_id=user_id,
-                    question=question,
-                    answer=result["answer"],
-                    sources=sources,
-                    context=context,
-                    metadata=result
-                )
-                
-                return response
+                # If still using Gemini, proceed
+                if not use_claude:
+                    # Call Gemini API
+                    result = await self.gemini_service.ask_simple_question(
+                        question=question,
+                        context=context_text if context_text else None
+                    )
+                    
+                    processing_time = result.get("processing_time", time.time() - start_time)
+                    
+                    response = ChatResponse(
+                        answer=result["answer"],
+                        sources=sources,
+                        processing_time=processing_time,
+                        metadata={
+                            "model_used": result["model"],
+                            "token_usage": result.get("usage", {}),
+                            "complexity": result.get("complexity", "simple"),
+                            "llm_provider": "gemini"
+                        }
+                    )
+                    
+                    # Cache and save to history
+                    self._cache_response(cache_key, response.model_dump())
+                    self._save_to_history(
+                        user_id=user_id,
+                        question=question,
+                        answer=result["answer"],
+                        sources=sources,
+                        context=context,
+                        metadata=result
+                    )
+                    
+                    return response
             
             # Check if this is a comparison question
             if "비교" in question:
