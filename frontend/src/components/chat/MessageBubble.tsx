@@ -1,5 +1,5 @@
 import React from 'react';
-import { User, Bot, Clock, FileText } from 'lucide-react';
+import { User, Bot, Clock, FileText, ExternalLink } from 'lucide-react';
 import type { ChatMessage } from '../../types';
 
 interface MessageBubbleProps {
@@ -55,13 +55,21 @@ const MessageBubble: React.FC<MessageBubbleProps> = ({ message }) => {
               <p className="text-xs text-gray-600 mb-1">출처:</p>
               <div className="flex flex-wrap gap-2">
                 {message.sources.map((source, index) => (
-                  <div
+                  <a
                     key={index}
-                    className="flex items-center px-2 py-1 bg-gray-200 rounded text-xs text-gray-700"
+                    href={source.url}
+                    target={source.type === 'news' ? '_blank' : undefined}
+                    rel={source.type === 'news' ? 'noopener noreferrer' : undefined}
+                    download={source.type === 'file'}
+                    className="flex items-center px-2 py-1 bg-gray-200 hover:bg-gray-300 rounded text-xs text-gray-700 transition-colors cursor-pointer"
                   >
-                    <FileText className="h-3 w-3 mr-1" />
-                    {source}
-                  </div>
+                    {source.type === 'file' ? (
+                      <FileText className="h-3 w-3 mr-1" />
+                    ) : (
+                      <ExternalLink className="h-3 w-3 mr-1" />
+                    )}
+                    {source.type === 'file' ? source.name : source.title}
+                  </a>
                 ))}
               </div>
             </div>

@@ -15,7 +15,7 @@ from app.services.interactive_claude_service import InteractiveClaudeService
 from app.services.gemini_service import GeminiService
 from app.services.document_service import DocumentService
 from app.services.pdf_processor import PDFProcessor
-from app.schemas.chat_schemas import ChatResponse
+from app.schemas.chat_schemas import ChatResponse, Source
 from app.models.chat_history import ChatHistory
 
 
@@ -107,7 +107,11 @@ class ChatService:
                             use_claude = True
                         elif text_content and len(text_content.strip()) > 100:
                             context_text = f"[{document.company_name} - {document.year}년 {document.doc_type}]\n{text_content[:5000]}"  # Limit text length
-                            sources.append(f"{document.company_name} {document.year}년 {document.doc_type}")
+                            sources.append(Source(
+                                type="file",
+                                name=f"{document.company_name}_{document.year}_{document.doc_type}.pdf",
+                                url=f"/api/documents/download/{document.id}"
+                            ))
                         else:
                             logger.warning(f"Insufficient text extracted from PDF, falling back to Claude")
                             use_claude = True
@@ -143,79 +147,101 @@ class ChatService:
                         user_id=user_id,
                         question=question,
                         answer=result["answer"],
-                        sources=sources,
+                        sources=[s.model_dump() for s in sources],
                         context=context,
                         metadata=result
                     )
                     
                     return response
             
-            # Check if this is a comparison question
-            if "비교" in question:
-                # Extract multiple companies from question
-                companies = []
-                for company in ["마인이스", "설로인", "우나스텔라"]:
-                    if company in question:
-                        companies.append(company)
+            # Check if this is a comparison question or has multiple companies
+            companies = []
+            for company in ["마인이스", "설로인", "우나스텔라"]:
+                if company in question:
+                    companies.append(company)
+            
+            logger.info(f"Found companies in question: {companies}")
+            
+            # If we have multiple companies or "비교" keyword, treat as comparison
+            if len(companies) >= 2 or "비교" in question:
+                logger.info(f"Processing as comparison question with companies: {companies}")
+                # Handle multiple company comparison
+                year = self.document_service.extract_year_from_question(question)
+                if not year:
+                    year = 2024
                 
-                if len(companies) >= 2:
-                    # Handle multiple company comparison
-                    year = self.document_service.extract_year_from_question(question)
-                    if not year:
-                        year = 2024
+                logger.info(f"Extracted year: {year}")
+                
+                # Collect documents for all companies
+                documents_info = []
+                doc_ids = []  # Keep track of document IDs for sources
+                for company in companies:
+                    documents = self.document_service.find_relevant_documents(company, year)
+                    logger.info(f"Found {len(documents)} documents for {company} in year {year}")
+                    if documents:
+                        doc = documents[0]
+                        try:
+                            pdf_content = self.document_service.read_pdf_content(doc.file_path)
+                            documents_info.append({
+                                "company": company,
+                                "year": doc.year,
+                                "doc_type": doc.doc_type,
+                                "content": pdf_content
+                            })
+                            doc_ids.append((doc.id, company, doc.year, doc.doc_type))
+                            logger.info(f"Successfully loaded PDF for {company}")
+                        except Exception as e:
+                            logger.error(f"Error reading PDF for {company}: {e}")
+                
+                if len(documents_info) >= 2:
+                    # Call Claude with multiple PDFs
+                    result = await self.claude_service.analyze_multiple_pdfs_with_question(
+                        documents_info=documents_info,
+                        question=question
+                    )
                     
-                    # Collect documents for all companies
-                    documents_info = []
-                    for company in companies:
-                        documents = self.document_service.find_relevant_documents(company, year)
-                        if documents:
-                            doc = documents[0]
-                            try:
-                                pdf_content = self.document_service.read_pdf_content(doc.file_path)
-                                documents_info.append({
-                                    "company": company,
-                                    "year": doc.year,
-                                    "doc_type": doc.doc_type,
-                                    "content": pdf_content
-                                })
-                            except Exception as e:
-                                logger.error(f"Error reading PDF for {company}: {e}")
+                    processing_time = time.time() - start_time
+                    sources = [
+                        Source(
+                            type="file",
+                            name=f"{company}_{year}_{doc_type}.pdf",
+                            url=f"/api/documents/download/{doc_id}"
+                        )
+                        for doc_id, company, year, doc_type in doc_ids
+                    ]
                     
-                    if len(documents_info) >= 2:
-                        # Call Claude with multiple PDFs
-                        result = await self.claude_service.analyze_multiple_pdfs_with_question(
-                            documents_info=documents_info,
-                            question=question
-                        )
-                        
-                        processing_time = time.time() - start_time
-                        sources = [f"{company} {year}년 재무제표" for company in companies]
-                        
-                        response = ChatResponse(
-                            answer=result["answer"],
-                            sources=sources,
-                            processing_time=processing_time,
-                            metadata={
-                                "model_used": result["model_used"],
-                                "token_usage": result["usage"],
-                                "estimated_cost": self.claude_service.estimate_cost(result["usage"], result["model_used"]),
-                                "comparison": True,
-                                "companies": companies
-                            }
-                        )
-                        
-                        # Cache and save to history
-                        self._cache_response(cache_key, response.model_dump())
-                        self._save_to_history(
-                            user_id=user_id,
-                            question=question,
-                            answer=result["answer"],
-                            sources=sources,
-                            context=context,
-                            metadata=result
-                        )
-                        
-                        return response
+                    response = ChatResponse(
+                        answer=result["answer"],
+                        sources=sources,
+                        processing_time=processing_time,
+                        metadata={
+                            "model_used": result["model_used"],
+                            "token_usage": result["usage"],
+                            "estimated_cost": self.claude_service.estimate_cost(result["usage"], result["model_used"]),
+                            "comparison": True,
+                            "companies": companies
+                        }
+                    )
+                    
+                    # Cache and save to history
+                    self._cache_response(cache_key, response.model_dump())
+                    self._save_to_history(
+                        user_id=user_id,
+                        question=question,
+                        answer=result["answer"],
+                        sources=[s.model_dump() for s in sources],
+                        context=context,
+                        metadata=result
+                    )
+                    
+                    return response
+                else:
+                    logger.warning(f"Not enough documents found for comparison. Found: {len(documents_info)}")
+                    return ChatResponse(
+                        answer=f"죄송합니다. 비교에 필요한 문서를 충분히 찾지 못했습니다. {companies} 회사들의 {year}년 재무제표를 확인할 수 없습니다.",
+                        sources=[],
+                        processing_time=time.time() - start_time
+                    )
             
             # Find relevant document for the question (single company)
             document, pdf_content = self.document_service.get_document_for_question(question)
@@ -248,7 +274,13 @@ class ChatService:
             # Create response
             response = ChatResponse(
                 answer=result["answer"],
-                sources=[f"{document.company_name} {document.year}년 {document.doc_type}"],
+                sources=[
+                    Source(
+                        type="file",
+                        name=f"{document.company_name}_{document.year}_{document.doc_type}.pdf",
+                        url=f"/api/documents/download/{document.id}"
+                    )
+                ],
                 charts=None,  # TODO: Implement chart generation if needed
                 processing_time=processing_time,
                 metadata={
@@ -266,7 +298,7 @@ class ChatService:
                 user_id=user_id,
                 question=question,
                 answer=result["answer"],
-                sources=[f"{document.company_name} {document.year}년 {document.doc_type}"],
+                sources=[s.model_dump() for s in response.sources],
                 context=context,
                 metadata=result
             )
@@ -320,7 +352,7 @@ class ChatService:
         user_id: Optional[int],
         question: str,
         answer: str,
-        sources: List[str],
+        sources: List[Dict[str, Any]],
         context: Optional[Dict[str, Any]],
         metadata: Dict[str, Any]
     ):

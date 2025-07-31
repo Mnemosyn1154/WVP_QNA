@@ -1,10 +1,17 @@
 // Chat types
+export interface Source {
+  type: 'file' | 'news';
+  name?: string;
+  title?: string;
+  url: string;
+}
+
 export interface ChatMessage {
   id: string;
   role: 'user' | 'assistant';
   content: string;
   timestamp: Date;
-  sources?: string[];
+  sources?: Source[];
   charts?: ChartData[];
   processingTime?: number;
 }
@@ -16,7 +23,7 @@ export interface ChatRequest {
 
 export interface ChatResponse {
   answer: string;
-  sources: string[];
+  sources: Source[];
   charts?: ChartData[];
   processingTime?: number;
 }

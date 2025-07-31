@@ -3,7 +3,9 @@ Document management endpoints
 """
 
 from typing import Optional, List
+from pathlib import Path
 from fastapi import APIRouter, Depends, Query, HTTPException, status
+from fastapi.responses import FileResponse
 from sqlalchemy.orm import Session
 
 from app.db.session import get_db
@@ -78,3 +80,45 @@ async def index_documents(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Error indexing documents: {str(e)}"
         )
+
+
+@router.get("/download/{document_id}")
+async def download_document(
+    document_id: int,
+    db: Session = Depends(get_db)
+):
+    """
+    Download a financial document by ID
+    """
+    from app.models.financial_doc import FinancialDoc
+    
+    # Get document metadata directly
+    document = db.query(FinancialDoc).filter(FinancialDoc.id == document_id).first()
+    if not document:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Document with ID {document_id} not found"
+        )
+    
+    # Check if file exists
+    # Handle both absolute and relative paths
+    file_path = Path(document.file_path)
+    if not file_path.is_absolute():
+        # If relative, make it relative to project root
+        file_path = Path.cwd() / file_path
+    
+    if not file_path.exists():
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"File not found on server: {file_path}"
+        )
+    
+    # Generate filename for download
+    filename = f"{document.company_name}_{document.year}_{document.doc_type}.pdf"
+    
+    # Return file response
+    return FileResponse(
+        path=str(file_path),
+        filename=filename,
+        media_type="application/pdf"
+    )

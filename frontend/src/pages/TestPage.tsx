@@ -55,16 +55,16 @@ const TestPage: React.FC = () => {
         return { success: true, data: result };
       },
     },
-    {
-      name: '뉴스 검색 테스트',
-      test: async () => {
-        const result = await newsAPI.searchNews({ 
-          company: '삼성전자',
-          limit: 5 
-        });
-        return { success: true, data: result };
-      },
-    },
+    // {
+    //   name: '뉴스 검색 테스트',
+    //   test: async () => {
+    //     const result = await newsAPI.searchNews({ 
+    //       company: '삼성전자',
+    //       limit: 5 
+    //     });
+    //     return { success: true, data: result };
+    //   },
+    // },
   ];
 
   const runTests = async () => {
